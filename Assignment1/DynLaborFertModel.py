@@ -403,19 +403,18 @@ class DynLaborFertModelClass(EconModelClass):
                     income = self.hh_income(sim.k[i,t],sim.h[i,t],sim.s[i,t],sim.n[i,t],t)
                     sim.a[i,t+1] = (1+par.r)*(sim.a[i,t] + income - sim.c[i,t])
                     sim.k[i,t+1] = sim.k[i,t] + sim.h[i,t]
-
-                    if par.spouse_rand == 1: # Stochastic spouse model 
+                    
+                    if par.spouse_rand == 1.0: 
+                        if (sim.draws_uniform[i,t] <= par.p_spouse):
+                            sim.s[i,t+1] = 1
+                        else:
+                            sim.s[i,t+1] = 0
+                        
                         birth = 0 
-                        if ((sim.draws_uniform[i,t] <= par.p_birth) & (spouse == 1) & (sim.n[i,t]<(par.Nn-1))):
+                        if ((sim.draws_uniform[i,t] <= par.p_birth) & (sim.s[i,t]==1) & (sim.n[i,t]<(par.Nn-1))):
                             birth = 1
                         sim.n[i,t+1] = sim.n[i,t] + birth
                         
-                        spouse = 0 
-                        if ((sim.draws_uniform[i,t] <= par.p_spouse)):
-                            spouse = 1 
-                        sim.s[i,t+1] = spouse 
-                        
-
                     else: # Baseline model
                         birth = 0 
                         if ((sim.draws_uniform[i,t] <= par.p_birth) & (sim.n[i,t]<(par.Nn-1))):
@@ -512,7 +511,7 @@ def event_study_graph(model, ax = None):
     if ax is None:
         _, ax = plt.subplots()  # create a new plot axis
     
-    ax.scatter(event_grid, event_hours_rel, label=f'$\\beta_1$={round(par.beta_1, 3)}')
+    ax.scatter(event_grid, event_hours_rel, label=f'$\\hat\\beta_1$={round(par.beta_1, 3)}')
     ax.hlines(y=0, xmin=event_grid[0], xmax=event_grid[-1], color='gray')
     ax.vlines(x=-0.5, ymin=np.nanmin(event_hours_rel), ymax=np.nanmax(event_hours_rel), color='red')
     ax.set(xlabel='Time since birth', ylabel='Hours worked (% change)', xticks=event_grid)
@@ -523,7 +522,7 @@ def event_study_graph(model, ax = None):
         
 ##########################
 # Marshallian Elasticity #
-def simulate_marshallian_elasticity(model, tax_increase):
+def simulate_marshallian_elasticity_subpopulations(model, tax_increase):
     """ 
     Simulates Marshallian elasticity for all periods in a given model after a permanent increase in marginal taxes.
     
@@ -532,7 +531,7 @@ def simulate_marshallian_elasticity(model, tax_increase):
         tax_increase (float): The percent increase in taxes.
     
     Returns:
-        model_increase (object): The model with 1 pct higher wage.
+        model_increase (object): The model with 1 pct higher tax.
         ela_total, ela_child, ela_no_child (numpy array): The Marshallian elasticity from simulated tax increase.
     """
     
@@ -548,20 +547,20 @@ def simulate_marshallian_elasticity(model, tax_increase):
     model_increase.simulate()
 
     # Total elasticity
-    ela_total = (model_increase.sim.h - model.sim.h) / model.sim.h
+    ela_total = (model_increase.sim.h - model.sim.h) / model.sim.h * 100
 
     # Allocate
     ela_child = np.full(model_increase.par.T, np.nan)
     ela_no_child = np.full(model_increase.par.T, np.nan)
 
-    # Calculate elasticity for each group
+    # Calculate elasticity for each subpopulation
     for t in range(model_increase.par.T):  
         without_child = sim.n[:,t] == 0
-        ela_no_child[t] = np.nanmean((model_increase.sim.h[without_child,t] - model.sim.h[without_child,t]) / model.sim.h[without_child,t])
+        ela_no_child[t] = np.nanmean((model_increase.sim.h[without_child,t] - model.sim.h[without_child,t]) / model.sim.h[without_child,t]) * 100
 
     for t in range(1, model_increase.par.T):  
         with_child = sim.n[:,t] > 0
-        ela_child[t] = np.nanmean((model_increase.sim.h[with_child,t] - model.sim.h[with_child,t]) / model.sim.h[with_child,t])
+        ela_child[t] = np.nanmean((model_increase.sim.h[with_child,t] - model.sim.h[with_child,t]) / model.sim.h[with_child,t]) * 100
 
     # d. print average Marshallian elasticity
     print(f'Total Average Marshallian Elasticity: {np.nanmean(ela_total):2.6f}')
@@ -570,3 +569,40 @@ def simulate_marshallian_elasticity(model, tax_increase):
 
     # e. return the average elasticity
     return model_increase, ela_total, ela_child, ela_no_child
+
+
+##########################
+# Marshallian Elasticity #
+def simulate_marshallian_elasticity(model, tax_increase):
+    """ 
+    Simulates Marshallian elasticity for all periods in a given model after a permanent increase in marginal taxes.
+    
+    Parameters:
+        model (object): The model to simulate.
+        tax_increase (float): The percent increase in taxes.
+    
+    Returns:
+        model_increase (object): The model with 1 pct higher tax.
+        ela_total (numpy array): The Marshallian elasticity from simulated tax increase.
+    """
+    
+    # a. unpack parameters
+    par, sim = model.par, model.sim
+    
+    # b. create a copy of the model with increased wages and solve
+    model_increase = model.copy()
+    model_increase.par.tau_vec[:] *= tax_increase
+    model_increase.solve()
+    
+    # c. simulate the model and calculate elasticity
+    model_increase.simulate()
+
+    # Total elasticity
+    ela_total = (model_increase.sim.h - model.sim.h) / model.sim.h * 100
+
+    
+    # d. print average Marshallian elasticity
+    print(f'Total Average Marshallian Elasticity: {np.nanmean(ela_total):2.6f}')
+    
+    # e. return the average elasticity
+    return model_increase, ela_total
