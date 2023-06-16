@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 from scipy.optimize import minimize,  NonlinearConstraint
 import warnings
 warnings.filterwarnings("ignore", message="delta_grad == 0.0. Check if the approximated function is linear.") # turn of annoying warning
+import os
 
 from EconModel import EconModelClass
 
@@ -324,13 +325,21 @@ def plot_elasticities(models_base, models_altered):
             new = np.mean(getattr(model_altered.sim, var), axis=0)
             ela = (new - base) / base * 100
             ax.scatter(range(model_base.par.simT), ela, label=f'Marshall {"Joint" if j % 2 == 0 else "Individual"} Model')
-            ax.set(xlabel='Age', ylabel=f'$e_{{M,t}}$ for {var}', xticks=range(model_base.par.simT))
-        ax.legend()
+            ax.set(xlabel='Period, $t$', ylabel=f'$e_{{M,t}}$ for {var}', xticks=range(model_base.par.simT))
+
+        # Only add legend for 'h1'
+        if var == 'h1':
+            ax.legend()
+        
         ax.set_title(titles[i])  # Use titles from the list
     
     # layout 
     fig.tight_layout(pad=1); # spacing between subplots
-    plt.savefig("LaborResponseTaxSchemes.pdf", format="pdf", bbox_inches="tight");
+    
+    if not os.path.exists("../plots"):
+        os.makedirs("../plots")
+        
+    plt.savefig("../plots/LaborResponseTaxSchemes.pdf", format="pdf", bbox_inches="tight");
     
     plt.show()
 
