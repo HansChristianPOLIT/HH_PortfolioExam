@@ -421,48 +421,7 @@ class DynLaborFertModelClass(EconModelClass):
                             birth = 1
                         sim.n[i,t+1] = sim.n[i,t] + birth
                 
-                
-    #########################
-    # Structural Estimation #    
-    def moment(self,beta_1):
-        """ Compute drop in labor supply along intensive margin in the event of a birth. """
 
-        self.solve()
-        self.simulate()
-
-        # a. unpack parameters
-        par, sim, sol = self.par, self.sim, self.sol
-        par.beta_1 = beta_1
-
-        # b. moment
-        birth = np.zeros(sim.n.shape, dtype=np.int_)
-        birth[:,1:] = (sim.n[:,1:] - sim.n[:,:-1]) > 0
-
-        # c. time since birth
-        periods = np.tile([t for t in range(par.simT)],(par.simN,1)) 
-        time_of_birth = np.max(periods * birth, axis=1)
-        I = time_of_birth > 0 
-        time_of_birth[~I] = -1000
-        time_of_birth = np.transpose(np.tile(time_of_birth,(par.simT,1)))
-        time_since_birth = periods - time_of_birth
-
-        # d. calculate the percentage change in hours from the period before birth
-        hours_before = np.mean(sim.h[time_since_birth==0])
-        hours_after = np.mean(sim.h[time_since_birth==-1])
-
-        est_birth_drop = (hours_before / hours_after -1)
-        
-        return est_birth_drop
-        
-    def structural_est(self,beta_1):
-        """ Estimation of beta_1. """
-
-        # a. unpack
-        par = self.par
-        
-        # b. objective function
-        diff = self.moment(beta_1) - par.target_birth_drop
-        return np.abs(diff)
         
 ###############
 # Event Study #

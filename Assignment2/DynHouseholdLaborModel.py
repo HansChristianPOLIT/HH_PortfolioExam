@@ -317,7 +317,7 @@ def plot_elasticities(models_base, models_altered):
 
     # Plot elasticities
     fig, axs = plt.subplots(ncols=2, figsize=(12, 4))
-    titles = ["(A): Household Member 1", "(B): Household Member 2"]  # new title list
+    titles = ["(A): Household Member 1 (Man)", "(B): Household Member 2 (Woman)"]  # new title list
     for i, var in enumerate(('h1', 'h2')):
         ax = axs[i]
         for j, (model_base, model_altered) in enumerate(zip(models_base, models_altered)):
